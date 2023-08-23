@@ -124,10 +124,12 @@ HELIX_Usage as  (
     SELECT
         CAST(empid AS BIGINT) AS "Employee",
         CAST(hae.eventdatetime_cst as DATE) AS "Date",
-        COUNT(eventtype) as "Helix_Searches"
+        COUNT(eventtype) as "Helix Searches",
+        COUNT(DISTINCT helix_sessionid) as "Sessions With Helix Search"
     FROM hive.care.l3_asurion_helix_search_all_events hae
-    WHERE
-        lower(hae.helix_lob) = 'soluto'
+    WHERE 1=1
+        AND lower(hae.helix_lob) = 'soluto'
+        AND hae.event = 'Search_Helix_Search_Performed'
         --Show only necessary rows
         AND CAST(hae.empid AS BIGINT) in (SELECT Employee FROM EligibleEmployees)
         and CAST(hae.eventdatetime_cst as DATE)
