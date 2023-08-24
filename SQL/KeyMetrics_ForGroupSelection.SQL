@@ -44,22 +44,22 @@ Sales_Flags AS (
         as "Session",
             MAX(case when spd.eligibility_flg = true then 1 else 0 end)
         as Eligible,
-            MAX(case when spd.offer_flg = true then 1 else 0 end)
-        as Offered,
+        --     MAX(case when spd.offer_flg = true then 1 else 0 end)
+        -- as Offered,
             MAX(case when spd.accept_flg = true then 1 else 0 end) 
-        as Accepted,
-            MAX(case when et.plan_id is null then 0 else 1 end)
-        as Confirmed_Enrollment,
-            CAST(MAX(et.thirty_day_churn_num) AS INT)
-        as Thirty_Day_Churn_Num
+        as Accepted
+        --     MAX(case when et.plan_id is null then 0 else 1 end)
+        -- as Confirmed_Enrollment,
+        --     CAST(MAX(et.thirty_day_churn_num) AS INT)
+        -- as Thirty_Day_Churn_Num
     FROM
         hive.care.l3_verizon_asurion_sales_platform_details spd 
-        LEFT OUTER JOIN
-        hive.care.l3_verizon_shs_enroll_trans et
-        on spd.plan_id = et.plan_id
-            and spd.sales_date_cst <= et.enroll_date
-            and spd.plan_id <> ''
-            and spd.plan_id is not null
+        -- LEFT OUTER JOIN
+        -- hive.care.l3_verizon_shs_enroll_trans et
+        -- on spd.plan_id = et.plan_id
+        --     and spd.sales_date_cst <= et.enroll_date
+        --     and spd.plan_id <> ''
+        --     and spd.plan_id is not null
     WHERE 1=1
         AND spd.channel_name = 'soluto'
          --Show only necessary rows
@@ -80,11 +80,11 @@ Sales AS (
     SELECT
         sf."Employee",
         Cast(sf."Date" as Date) "Date",
-        SUM(sf."Eligible") as "TotalEligible",
-        SUM(sf."Offered") as "TotalOffered",
-        SUM(sf."Accepted") as "TotalAccepted",
-        SUM(sf."Confirmed_Enrollment") as "TotalConfirmed",
-        SUM(sf."Thirty_Day_Churn_Num") as "TotalThirtyDayChurn"
+        SUM(sf."Eligible") as "Total_Eligible",
+        -- SUM(sf."Offered") as "Total_Offered",
+        SUM(sf."Accepted") as "Total_Accepted"
+        -- SUM(sf."Confirmed_Enrollment") as "Total_Confirmed",
+        -- SUM(sf."Thirty_Day_Churn_Num") as "Total_Thirty_Day_Churn"
     FROM Sales_Flags sf
     GROUP BY
         sf."Employee",
@@ -149,9 +149,10 @@ SELECT
     em.HoursWorked,
     em.Sessions,
     em.Total_Resolution_Time,
-    s.TotalAccepted,
-    s.TotalEligible,
-    COALESCE(hu.Helix_Searches,0) as "Helix_Searches"
+    s.Total_Accepted,
+    s.Total_Eligible,
+    COALESCE(hu."Helix Searches",0) as "Helix_Searches",
+    COALESCE(hu."Sessions With Helix Search",0) as "Helix_Sessions"
 FROM
     EligibleEmployees ee
     LEFT OUTER JOIN

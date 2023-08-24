@@ -42,7 +42,6 @@ WHERE 1=1
     AND hae.event = 'Search_Helix_Search_Performed'
     --Show only necessary rows
     AND CAST(hae.empid AS BIGINT) in (SELECT Employee FROM EligibleEmployees)
-    -- AND  CAST(hae.empid AS BIGINT) = 589355
     and CAST(hae.eventdatetime_cst as DATE)
         BETWEEN 
             (SELECT MAX(StartDate) FROM DateSelector)
