@@ -1,7 +1,4 @@
 WITH
-/*TODO
-    1. Sales Currently ASP only need to look into GLOW
-*/
 
 DateSelector As (
     /*
@@ -42,10 +39,10 @@ WHERE 1=1
     AND hae.event = 'Search_Helix_Search_Performed'
     --Show only necessary rows
     AND CAST(hae.empid AS BIGINT) in (SELECT Employee FROM EligibleEmployees)
-    and CAST(hae.eventdatetime_cst as DATE)
+    AND CAST(hae.eventdatetime_cst as DATE)
         BETWEEN 
             (SELECT MAX(StartDate) FROM DateSelector)
-            and
+            AND
             (SELECT MAX(EndDate) FROM DateSelector)
 GROUP BY
     CAST(empid AS BIGINT),
