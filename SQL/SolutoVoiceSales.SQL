@@ -28,7 +28,7 @@ EligibleEmployees AS(
 )
 
 SELECT
-    epm.expert_id as "Employee",
+    CAST(epm.expert_id AS BIGINT) as "Employee",
     epm.date as "Date",
     SUM(COALESCE(epm.numerator,0)) as "Total_Eligible",
     SUM(COALESCE(epm.denominator,0)) as "Total_Accepted"
