@@ -30,12 +30,12 @@ EligibleEmployees AS(
 SELECT
     epm.expert_id as "Employee",
     epm.date as "Date",
-    SUM(COALESCE(epm.numerator,0)) as "Offered",
-    SUM(COALESCE(epm.denominator,0)) as "Accepted"
+    SUM(COALESCE(epm.numerator,0)) as "Total_Eligible",
+    SUM(COALESCE(epm.denominator,0)) as "Total_Accepted"
 FROM hive.care.expert_performance_metrics epm
 WHERE 1=1
     AND epm.metric = 'SP100'
-    -- AND emp.lob = 'PSS'
+    AND upper(epm.lob) = 'PSS'
     --Show only necessary rows
     AND CAST(epm.expert_id AS BIGINT) in (SELECT Employee FROM EligibleEmployees)
     AND CAST(epm.date as DATE)
