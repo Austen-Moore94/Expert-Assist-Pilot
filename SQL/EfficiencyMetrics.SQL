@@ -1,6 +1,4 @@
 WITH
---TODO ADD 
-
 DateSelector As (
     /*
     Builds a table with min and max dates.
