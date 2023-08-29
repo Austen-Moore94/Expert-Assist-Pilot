@@ -1,7 +1,5 @@
 WITH
-/*TODO
-    1. Sales Currently ASP only need to look into GLOW
-*/
+--TODO ADD in CXP
 
 DateSelector As (
     /*
@@ -78,7 +76,7 @@ HELIX_Usage as  (
     GROUP BY
         CAST(empid AS BIGINT),
         CAST(hae.eventdatetime_cst as DATE)
-)
+),
 
 Sales AS (
     /*Sums the total eligible and accepted
@@ -86,8 +84,8 @@ Sales AS (
     SELECT
         CAST(epm.expert_id AS BIGINT) as "Employee",
         epm.date as "Date",
-        SUM(COALESCE(epm.numerator,0)) as "Total_Eligible",
-        SUM(COALESCE(epm.denominator,0)) as "Total_Accepted"
+        SUM(COALESCE(epm.denominator,0)) as "Total_Eligible",
+        SUM(COALESCE(epm.numerator,0)) as "Total_Accepted"
     FROM hive.care.expert_performance_metrics epm
     WHERE 1=1
         AND epm.metric = 'SP100'
@@ -103,8 +101,7 @@ Sales AS (
     GROUP BY
         epm.expert_id,
         epm.date
-),
-
+)
 
 SELECT
     ee.Employee,
