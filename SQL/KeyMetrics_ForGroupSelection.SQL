@@ -126,7 +126,7 @@ TransactionSummary as(
     WHERE 1=1 
         AND qi.business_unit = 'pss' 
         AND qi.channel = 'voice'
-        AND CAST(qi.trans_date as date) >= CAST('2023-06-01' AS DATE)
+        AND CAST(qi.trans_date as date) >= (SELECT MAX(StartDate) FROM DateSelector)
         --Show only necessary rows
         AND CAST(qi.expert_id  as BIGINT) in (SELECT Employee FROM EligibleEmployees)
         and CAST(qi.trans_date as date)
