@@ -24,7 +24,7 @@ EligibleEmployees AS(
         AND eh.location = 'flor'
         AND (SELECT MAX(EndDate) FROM DateSelector)
             BETWEEN eh.eff_start_dt and eh.eff_end_dt
-),
+)
 
 
 SELECT 
