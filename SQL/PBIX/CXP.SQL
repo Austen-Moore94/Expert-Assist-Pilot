@@ -25,7 +25,6 @@ EligibleEmployees AS(
         AND (SELECT MAX(EndDate) FROM DateSelector)
             BETWEEN eh.eff_start_dt and eh.eff_end_dt
 ),
-
 ml_duplicate_remover AS(
 
     SELECT
@@ -37,7 +36,7 @@ ml_duplicate_remover AS(
     WHERE 1=1
         AND ml.name = 'cxpVoice'
         AND ml.key = 'cxp_prob'
-        AND ml.created_dt >= (SELECT MAX(StartDate) FROM DateSelector)
+        AND  ml.created_dt >= format_datetime((SELECT MAX(StartDate) FROM DateSelector),'y-MM-d')
     GROUP BY 
        CAST(ml.trans_id as BIGINT)
 ),
@@ -53,7 +52,7 @@ TransactionSummary as(
         AND qi.channel = 'voice'
         AND CAST(qi.trans_date as date) >= (SELECT MAX(StartDate) FROM DateSelector)
         --Show only necessary rows
-        AND CAST(qi.expert_id as BIGINT) in (SELECT Employee FROM EligibleEmployees)
+        AND CAST(qi.expert_id  as BIGINT) in (SELECT Employee FROM EligibleEmployees)
         and CAST(qi.trans_date as date)
             BETWEEN 
                 (SELECT MAX(StartDate) FROM DateSelector)

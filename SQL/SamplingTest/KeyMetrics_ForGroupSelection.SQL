@@ -112,7 +112,7 @@ ml_duplicate_remover AS(
     WHERE 1=1
         AND ml.name = 'cxpVoice'
         AND ml.key = 'cxp_prob'
-        AND ml.created_dt >= (SELECT MAX(StartDate) FROM DateSelector)
+        AND  ml.created_dt >= format_datetime((SELECT MAX(StartDate) FROM DateSelector),'y-MM-d')
     GROUP BY 
        CAST(ml.trans_id as BIGINT)
 ),
