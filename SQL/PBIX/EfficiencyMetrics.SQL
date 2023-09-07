@@ -7,7 +7,7 @@ DateSelector As (
     */
     SELECT *
     FROM
-        ( VALUES (CAST('2023-06-01' AS DATE), CAST(CURRENT_DATE AS DATE)) )
+        ( VALUES (CAST('2023-06-05' AS DATE), CAST(CURRENT_DATE AS DATE)) )
         as t ("StartDate","EndDate")
 ),
 
