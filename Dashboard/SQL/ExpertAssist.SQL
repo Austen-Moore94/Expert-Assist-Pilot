@@ -75,7 +75,8 @@ SELECT
     CAST(SUBSTRING(element_at(VHE.edp_raw_data_map, 'ExtraData_endRequestTime'),1, 10) AS DATE) as "Date",
     TRY(CAST(element_at(VHE.edp_raw_data_map, 'ExtraData_agentId') AS BIGINT)) as "Employee",
     ppx.work_type,
-    COALESCE(COUNT(element_at(VHE.edp_raw_data_map, 'Identities_messageSid')),0) as TotalUses,
+    COALESCE(COUNT(element_at(VHE.edp_raw_data_map, 'Identities_messageSid')),0) as ExpertAssistMessages,
+    COALESCE(COUNT(DISTINCT element_at(VHE.edp_raw_data_map, 'Identities_SessionId')),0) as ExpertAssistSessions,
     COALESCE(COUNT(DISTINCT element_at(VHE.edp_raw_data_map, 'Identities_callSid')),0) as CallsWithUse,
     COALESCE(SUM(CAST(element_at(VHE.edp_raw_data_map, 'ExtraData_totalTime') AS REAL)),0) BackendLatency
 FROM 
