@@ -89,6 +89,7 @@ WHERE 1=1
     AND element_at(VHE.edp_raw_data_map, '_header_eventContext_producer') = 'eip-ingestion-data-science'
     AND element_at(VHE.edp_raw_data_map, 'Identities_messageSid') IS NOT NULL
     AND element_at(VHE.edp_raw_data_map, 'Name') = 'RequestSummaryVoice'
+    AND element_at(VHE.edp_raw_data_map, 'Scope')='GenerativeAISearchBotVoice'
     AND element_at(VHE.edp_raw_data_map, 'ExtraData_agentId') IN (SELECT expert_id_string FROM EligibleEmployees)
 GROUP BY
     CAST(SUBSTRING(element_at(VHE.edp_raw_data_map, 'ExtraData_endRequestTime'),1, 10) AS DATE),
