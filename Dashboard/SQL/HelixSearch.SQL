@@ -76,7 +76,7 @@ SELECT
     CAST(hae.eventdatetime_cst as DATE) AS "Date",
     ppx.work_type,
     COUNT(HAE.eventtype) as "Helix Searches",
-    COUNT(DISTINCT HAE.helix_sessionid) as "Sessions With Helix Search"
+    COUNT(DISTINCT HAE.helix_sessionid) as "Helix Sessions"
 FROM
     hive.care.l3_asurion_helix_search_all_events hae
     LEFT JOIN
