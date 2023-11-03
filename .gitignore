@@ -1,6 +1,6 @@
 *.xlsx
 *.pbix
 SubqueryDrafting.SQL
-SQL/References/
+References/
 Test and Control Group Query Testing.ipynb
 PowerPointReports
