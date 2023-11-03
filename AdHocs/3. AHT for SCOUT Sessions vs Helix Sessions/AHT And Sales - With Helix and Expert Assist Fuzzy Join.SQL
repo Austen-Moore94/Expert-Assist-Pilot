@@ -7,8 +7,8 @@ DateSelector AS (
     */
     SELECT *
     FROM
-        ( VALUES (CAST('2023-01-01' AS DATE), CAST(CURRENT_DATE AS DATE)) )
-        as t ("StartDate","EndDate")
+        ( VALUES (CAST('$startDate$' AS DATE), CAST('$endDate$' AS DATE), CAST('2023-09-25' AS DATE)) )
+        as t ("StartDate","EndDate","ExperAssistLaunch")
 ),
 
 EligibleEmployees AS (
@@ -87,7 +87,7 @@ Sales AS(
 
 HELIX AS(
 SELECT
-    from_iso8601_timestamp(HAE.EventDate) TimeOfHelixSearch,
+    CAST(AT_TIMEZONE(from_iso8601_timestamp(eventDate), 'America/Chicago') AS TIMESTAMP) TimeOfHelixSearch,
     CAST(HAE.empid AS BIGINT) AS Employee,
     COUNT(HAE.eventtype) AS HelixSearches
 FROM
@@ -98,18 +98,18 @@ WHERE 1=1
     AND hae.empid in (SELECT expert_id_string FROM EligibleEmployees)
     AND CAST(hae.eventdatetime_cst as DATE)
         BETWEEN 
-            (SELECT MAX(StartDate) FROM DateSelector)
+            (SELECT StartDate FROM DateSelector)
             AND
-            (SELECT MAX(EndDate) FROM DateSelector)
+            (SELECT EndDate FROM DateSelector)
 GROUP BY
-    from_iso8601_timestamp(HAE.EventDate),
+    CAST(AT_TIMEZONE(from_iso8601_timestamp(eventDate), 'America/Chicago') AS TIMESTAMP),
     CAST(HAE.empid AS BIGINT)
 ),
 
 ExpertAssist AS(
     SELECT
         CAST(element_at(VHE.edp_raw_data_map, 'ExtraData_agentId') AS BIGINT) as Employee,
-        from_iso8601_timestamp(element_at(VHE.edp_raw_data_map,'Time')) as TimeOfExpertAssistUse,
+        cast(substr(element_at(VHE.edp_raw_data_map, 'ExtraData_startRequestTime'), 1, 19) as timestamp) as TimeOfExpertAssistUse,
         COUNT(element_at(VHE.edp_raw_data_map, 'Identities_messageSid')) AS ExpertAssistSearches
     FROM 
         hive.care.l1_verizon_home_events VHE
@@ -118,10 +118,11 @@ ExpertAssist AS(
         AND element_at(VHE.edp_raw_data_map, 'Identities_messageSid') IS NOT NULL
         AND element_at(VHE.edp_raw_data_map, 'Name') = 'RequestSummaryVoice'
         AND element_at(VHE.edp_raw_data_map, 'Scope')='GenerativeAISearchBotVoice'
+        AND DATE(edp_updated_date) >= (SELECT ExperAssistLaunch FROM DateSelector)
         AND element_at(VHE.edp_raw_data_map, 'ExtraData_agentId') IN (SELECT expert_id_string FROM EligibleEmployees)
     GROUP BY
         CAST(element_at(VHE.edp_raw_data_map, 'ExtraData_agentId') AS BIGINT),
-        from_iso8601_timestamp(element_at(VHE.edp_raw_data_map,'Time'))
+        cast(substr(element_at(VHE.edp_raw_data_map, 'ExtraData_startRequestTime'), 1, 19) as timestamp)
 
 )
 
