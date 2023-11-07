@@ -132,7 +132,7 @@ SELECT
     -- a.CallEnd,
     CAST(a.Employee as BIGINT) Employee,
     -- a.callNo,
-    -- a.TaskQueue,
+    a.TaskQueue,
     a.HandleTime,
     COALESCE(s.Offered,0) as "Offered",
     COALESCE(s.Accepted,0) as "Accepted",
