@@ -67,32 +67,74 @@ ppx AS
         INNER JOIN hive.care.l3_asurion_whole_home_expert_master m ON eh.expert_id = m.expert_id 
         LEFT JOIN payper_session ppx ON UPPER(split_part(m.win_auth, chr(92),2)) = UPPER(ppx.network_id) and dt.clndr_date between ppx.start_date and ppx.end_date
     WHERE
-        dt.clndr_date >= (SELECT StartDate FROM DateSelector)
+        dt.clndr_date >= (SELECT MAX(StartDate) FROM DateSelector)
         AND m.expert_id in (SELECT expert_id_string FROM EligibleEmployees)
+),
+
+ml_duplicate_remover AS
+(
+    SELECT
+        CAST(ml.trans_id as BIGINT) as trans_id,
+        max(ml.created_dt) as last_update_date,
+        max(ml.eventid) as last_eventid
+    FROM
+        hive.care.l1_asurion_app_analytics_eds_ml_pipeline_results ml
+    WHERE 1=1
+        AND ml.name = 'cxpVoice'
+        AND ml.key = 'cxp_prob'
+        AND  ml.created_dt >= format_datetime((SELECT MAX(StartDate) FROM DateSelector),'y-MM-d')
+    GROUP BY 
+       CAST(ml.trans_id as BIGINT)
+),
+
+TransactionSummary AS
+(
+    SELECT
+        CAST(qi.trans_id as BIGINT) AS trans_id,
+        MIN(CAST(qi.expert_id as BIGINT)) as "Employee",
+        MIN(CAST(qi.trans_date as date)) as trans_date
+    FROM care.l3_quality_insights_transactions qi
+    WHERE 1=1 
+        AND qi.business_unit = 'pss' 
+        AND qi.channel = 'voice'
+        AND CAST(qi.trans_date as date) >= (SELECT MAX(StartDate) FROM DateSelector)
+        --Show only necessary rows
+        AND CAST(qi.expert_id  as BIGINT) in (SELECT Employee FROM EligibleEmployees)
+        and CAST(qi.trans_date as date)
+            BETWEEN 
+                (SELECT MAX(StartDate) FROM DateSelector)
+                and
+                (SELECT MAX(EndDate) FROM DateSelector)
+    GROUP BY
+        CAST(qi.trans_id as BIGINT)
+),
+
+CXP_Scores as(
+    SELECT
+        ts.trans_date as "Date",
+        ts.Employee as "Employee",
+        SUM(CAST(ml.value AS DOUBLE)) as CXP_Prob_Sum,
+        COUNT(ml.value) as CXP_Prob_Count
+    FROM 
+        TransactionSummary ts
+        LEFT OUTER JOIN
+        ml_duplicate_remover dr
+            ON ts.trans_id = dr.trans_id
+        INNER JOIN
+        hive.care.l1_asurion_app_analytics_eds_ml_pipeline_results ml
+            ON CAST(ml.trans_id as BIGINT) = dr.trans_id
+                AND ml.created_dt = dr.last_update_date
+                AND ml.eventid =dr.last_eventid
+    WHERE 1=1
+        AND ml.name = 'cxpVoice'
+        AND ml.key = 'cxp_prob'
+    GROUP BY
+        ts.trans_date,
+        ts.Employee
 )
 
-SELECT 
-    CAST(SUBSTRING(element_at(VHE.edp_raw_data_map, 'ExtraData_endRequestTime'),1, 10) AS DATE) as "Date",
-    TRY(CAST(element_at(VHE.edp_raw_data_map, 'ExtraData_agentId') AS BIGINT)) as "Employee",
-    ppx.work_type,
-    COALESCE(COUNT(element_at(VHE.edp_raw_data_map, 'Identities_messageSid')),0) as ExpertAssistMessages,
-    COALESCE(COUNT(DISTINCT element_at(VHE.edp_raw_data_map, 'Identities_SessionId')),0) as ExpertAssistSessions,
-    COALESCE(COUNT(DISTINCT element_at(VHE.edp_raw_data_map, 'Identities_callSid')),0) as CallsWithUse,
-    COALESCE(SUM(CAST(element_at(VHE.edp_raw_data_map, 'ExtraData_totalTime') AS REAL)),0) BackendLatency
-FROM 
-    hive.care.l1_verizon_home_events VHE
-    LEFT OUTER JOIN 
-    PPX
-        ON CAST(element_at(VHE.edp_raw_data_map, 'ExtraData_agentId') AS BIGINT)  = ppx.expert_id 
-            AND CAST(SUBSTRING(element_at(VHE.edp_raw_data_map, 'ExtraData_endRequestTime'),1, 10) AS DATE) = ppx.clndr_date
-WHERE 1=1
-    AND element_at(VHE.edp_raw_data_map, '_header_eventContext_producer') = 'eip-ingestion-data-science'
-    AND element_at(VHE.edp_raw_data_map, 'Identities_messageSid') IS NOT NULL
-    AND element_at(VHE.edp_raw_data_map, 'Name') = 'RequestSummaryVoice'
-    AND element_at(VHE.edp_raw_data_map, 'Scope')='GenerativeAISearchBotVoice'
-    AND DATE(edp_updated_date) >= (SELECT StartDate FROM DateSelector)
-    AND element_at(VHE.edp_raw_data_map, 'ExtraData_agentId') IN (SELECT expert_id_string FROM EligibleEmployees)
-GROUP BY
-    CAST(SUBSTRING(element_at(VHE.edp_raw_data_map, 'ExtraData_endRequestTime'),1, 10) AS DATE),
-    TRY (CAST(element_at(VHE.edp_raw_data_map, 'ExtraData_agentId') AS BIGINT)),
-    ppx.work_type
+
+SELECT cxp.*
+	, ppx.work_type
+FROM CXP_Scores cxp
+LEFT JOIN ppx ON cxp.employee = ppx.expert_id and cxp.date = ppx.clndr_date
