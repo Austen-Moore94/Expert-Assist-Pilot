@@ -2,7 +2,7 @@ WITH
 DateSelector As (
     SELECT *
     FROM
-        ( VALUES (CAST('2023-10-02' AS DATE), CAST('2023-11-17' AS DATE)) )
+        ( VALUES (CAST('2023-11-31' AS DATE), CAST('2023-12-03' AS DATE)) )
         as t ("StartDate","EndDate")
 ),
 
@@ -13,15 +13,23 @@ EligibleEmployees AS
     SELECT
         e.Employee
     FROM
-        (VALUES (596033), (596065), (596099), (596019), (591490), (595995),
-                (596601), (591429), (596593), (594507), (594513), (595991)
-         ) as e ("Employee")
+        (
+        VALUES
+            --Random Group
+            (575996), (569375), (581015), (547655), (572222), (572269), (567799), (546357), (578273), (546831),
+            (547381), (578299), (580867), (550910), (548646), (550446), (574176), (568545), (569153), (579630),
+            (552704),
+            --PreSelected Test
+            (548026), (426097),
+            --PreSelected Control
+            (597572), (596097), (597580), (597576), (597574), (597685), (597624)
+        ) as e ("Employee")
 ),
 
 
 SessionsAndHoursWorked AS(
 SELECT
-    CAST(sfd.emplid AS BIGINT) as "Employee",
+    CAST(sfd.emplid AS INT) as "Employee",
     CAST(sfd.clndr_dt_cst  AS date) "Date",
     SUM(COALESCE(sfd.total_stafftime,0)/3600.00) as "HoursWorked",
     SUM(sfd.total_service_events) as "Sessions",
@@ -39,13 +47,13 @@ WHERE 1=1
             and
             (SELECT MAX(EndDate) FROM DateSelector)
 GROUP BY
-    CAST(sfd.emplid AS BIGINT),
+    CAST(sfd.emplid AS INT),
     CAST(sfd.clndr_dt_cst  AS date)
 ),
 
 HERO AS(
     SELECT
-        CAST(epm.expert_id AS BIGINT) as "Employee",
+        CAST(epm.expert_id AS INT) as "Employee",
         epm.date as "Date",
         SUM(COALESCE(epm.denominator,0)) as "hero_XR_score",
         SUM(COALESCE(epm.numerator,0)) as "hero_XR_count"
@@ -67,11 +75,11 @@ HERO AS(
 
 Transfers AS(
     SELECT
-        CAST(epm.expert_id AS BIGINT) as "Employee",
+        CAST(epm.expert_id AS INT) as "Employee",
         epm.date as "Date",
         SUM(COALESCE(epm.denominator,0)) as "Transfer_score",
         SUM(COALESCE(epm.numerator,0)) as "Transfer_count"
-    FROM hive.care.expert_performance_metrics epm
+    FROM hive.care.  epm
     WHERE 1=1
         AND epm.metric = 'Transfers'
         AND upper(epm.lob) = 'PSS'
@@ -89,7 +97,7 @@ Transfers AS(
 
 HELIX AS(
     SELECT
-        CAST(HAE.empid AS BIGINT) AS "Employee",
+        CAST(HAE.empid AS INT) AS "Employee",
         CAST(hae.eventdatetime_cst as DATE) AS "Date",
         COUNT(HAE.eventtype) as "Helix Searches",
         COUNT(DISTINCT HAE.helix_sessionid) as "Helix Sessions"
@@ -106,13 +114,13 @@ HELIX AS(
                 AND
                 (SELECT MAX(EndDate) FROM DateSelector)
     GROUP BY
-        CAST(HAE.empid AS BIGINT),
+        CAST(HAE.empid AS INT),
         CAST(hae.eventdatetime_cst as DATE)
 ),
 
 Sales AS(
     SELECT
-        CAST(epm.expert_id AS BIGINT) as "Employee",
+        CAST(epm.expert_id AS INT) as "Employee",
         epm.date as "Date",
         SUM(COALESCE(epm.denominator,0)) as "Total_Eligible",
         SUM(COALESCE(epm.numerator,0)) as "Total_Accepted"
@@ -140,8 +148,8 @@ SELECT
     shw.Total_Resolution_Time,
     hro.HERO_XR_Score,
     hro.HERO_XR_Count,
-    trn.Transfer_Score,
-    trn.Transfer_Count,
+    COALESCE(trn.Transfer_Score,0) Transfer_Score,
+    COALESCE(trn.Transfer_Count,0) Transfer_Count, 
     COALESCE(hx."Helix Searches",0) "Helix_Searches",
     COALESCE(hx."Helix Sessions",0) "Helix_Sessions",
     s.Total_Eligible,
@@ -170,3 +178,6 @@ FROM
 
 WHERE 1=1
     AND shw.Sessions is not null
+ORDER BY
+    shw.Date,
+    shw.Employee
