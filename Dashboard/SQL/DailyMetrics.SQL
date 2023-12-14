@@ -1,10 +1,5 @@
 WITH
 DateSelector As (
-    /*
-    Builds a table with min and max dates.
-    Kind of overengineered but it prevents dates
-    getting changed in one place but not another.
-    */
     SELECT *
     FROM
         ( VALUES (CAST('2023-06-05' AS DATE), CAST(CURRENT_DATE AS DATE)) )
@@ -16,7 +11,7 @@ EligibleEmployees AS
     /*Finds currently active
      Employees in the orlando office and their tenure group */
     SELECT
-        CAST(eh.expert_id AS BIGINT) as "Employee",
+        CAST(eh.expert_id AS INTEGER) as "Employee",
         eh.expert_id as expert_id_string,
         eh.tenure_group as "TenureGroup"
     FROM
@@ -59,7 +54,7 @@ ppx AS
 (
     SELECT
         dt.clndr_date
-        , CAST(m.expert_id as BIGINT) as expert_id
+        , CAST(m.expert_id as INTEGER) as expert_id
         , case when ppx.email is not null then 'PPX' else 'Hourly' end as work_type
     FROM
         hive.care.l4_asurion_umt_clndr_date dt
@@ -71,58 +66,12 @@ ppx AS
         AND m.expert_id in (SELECT expert_id_string FROM EligibleEmployees)
 ),
 
-SessionsAndHoursWorked AS(
-SELECT
-    CAST(sfd.emplid AS BIGINT) as "Employee",
-    CAST(sfd.clndr_dt_cst  AS date) "Date",
-    SUM(COALESCE(sfd.total_stafftime,0)/3600.00) as "HoursWorked",
-    SUM(sfd.total_service_events) as "Sessions",
-    SUM(COALESCE(sfd.total_workload,0))as "Total_Resolution_Time"
-FROM
-    care.l3_asurion_soluto_finance_datamart_v1 sfd
-WHERE 1=1
-    AND sfd.channel in ('C2C','IVR')
-    AND sfd.total_service_events is not null
-    AND sfd.total_service_events != 0 
-    AND sfd.emplid in (SELECT Employee FROM EligibleEmployees)
-    AND CAST(sfd.clndr_dt_cst  AS date)
-        BETWEEN 
-            (SELECT MAX(StartDate) FROM DateSelector)
-            and
-            (SELECT MAX(EndDate) FROM DateSelector)
-GROUP BY
-    CAST(sfd.emplid AS BIGINT),
-    CAST(sfd.clndr_dt_cst  AS date)
-),
-
-HERO AS(
-    SELECT
-        CAST(epm.expert_id AS BIGINT) as "Employee",
-        epm.date as "Date",
-        SUM(COALESCE(epm.denominator,0)) as "hero_solve_score",
-        SUM(COALESCE(epm.numerator,0)) as "hero_solve_count"
-    FROM hive.care.expert_performance_metrics epm
-    WHERE 1=1
-        AND epm.metric = 'HERO_Solve'
-        AND upper(epm.lob) = 'PSS'
-        --Show only necessary rows
-        AND epm.expert_id in (SELECT expert_id_string FROM EligibleEmployees)
-        AND CAST(epm.date as DATE)
-            BETWEEN 
-                (SELECT MAX(StartDate) FROM DateSelector)
-                AND
-                (SELECT MAX(EndDate) FROM DateSelector)
-    GROUP BY
-        epm.expert_id,
-        epm.date
-),
-
 HELIX AS(
     SELECT
-        CAST(HAE.empid AS BIGINT) AS "Employee",
+        CAST(HAE.empid AS INTEGER) AS "Employee",
         CAST(hae.eventdatetime_cst as DATE) AS "Date",
-        COUNT(HAE.eventtype) as "Helix Searches",
-        COUNT(DISTINCT HAE.helix_sessionid) as "Helix Sessions"
+        COUNT(HAE.eventtype) as "HelixSearches",
+        COUNT(DISTINCT HAE.helix_sessionid) as "HelixSessions"
     FROM
         hive.care.l3_asurion_helix_search_all_events hae
     WHERE 1=1
@@ -136,19 +85,23 @@ HELIX AS(
                 AND
                 (SELECT MAX(EndDate) FROM DateSelector)
     GROUP BY
-        CAST(HAE.empid AS BIGINT),
+        CAST(HAE.empid AS INTEGER),
         CAST(hae.eventdatetime_cst as DATE)
 ),
 
-Sales AS(
+EmployeeMetrics AS(
     SELECT
-        CAST(epm.expert_id AS BIGINT) as "Employee",
+        CAST(epm.expert_id AS INTEGER) as "Employee",
         epm.date as "Date",
-        SUM(COALESCE(epm.denominator,0)) as "Total_Eligible",
-        SUM(COALESCE(epm.numerator,0)) as "Total_Accepted"
+        SUM(CASE WHEN epm.metric = 'SP100' THEN COALESCE(epm.denominator,0) ELSE 0 END) as "Total_Eligible",
+        SUM(CASE WHEN epm.metric = 'SP100' THEN COALESCE(epm.numerator,0) ELSE 0 END) as "Total_Accepted",
+        SUM(CASE WHEN epm.metric = 'HERO_Solve' THEN COALESCE(epm.denominator,0) ELSE 0 END) as "hero_solve_score",
+        SUM(CASE WHEN epm.metric = 'HERO_Solve' THEN COALESCE(epm.numerator,0) ELSE 0 END) as "hero_solve_count",
+        SUM(CASE WHEN epm.metric = 'crt' THEN COALESCE(epm.denominator,0) ELSE 0 END) as  "Sessions",
+        SUM(CASE WHEN epm.metric = 'crt' THEN COALESCE(epm.numerator,0) ELSE 0 END) as "Total_Resolution_Time"
     FROM hive.care.expert_performance_metrics epm
     WHERE 1=1
-        AND epm.metric = 'SP100'
+        AND epm.metric in ('SP100', 'HERO_Solve', 'crt')
         AND upper(epm.lob) = 'PSS'
         --Show only necessary rows
         AND epm.expert_id in (SELECT expert_id_string FROM EligibleEmployees)
@@ -160,38 +113,58 @@ Sales AS(
     GROUP BY
         epm.expert_id,
         epm.date
+),
+
+WorkedHours AS(
+    SELECT
+        CAST(agnt.emplid AS INTEGER) AS "Employee",
+        CAST(agnt.event_date_cst AS DATE) AS "Date",
+        SUM(COALESCE(agnt.total_time,0.00))/3600.00/*Seconds in an hour*/ AS  "HoursWorked"
+    FROM
+        hive.care.l3_asurion_twilio_agent_activity_detail agnt
+    WHERE 1=1 
+        AND UPPER(agnt.worker_state) not in (
+            'OFFLINE','UNAVAILABLE','BREAK',
+            'LUNCH','MEETING','NOT AVAILABLE')
+        AND agnt.emplid in (SELECT expert_id_string FROM EligibleEmployees)
+        AND CAST(agnt.event_date_cst AS DATE)
+            BETWEEN 
+                (SELECT MAX(StartDate) FROM DateSelector)
+                AND
+                (SELECT MAX(EndDate) FROM DateSelector)
+    GROUP BY
+        CAST(agnt.emplid AS INTEGER),
+        CAST(agnt.event_date_cst AS DATE)
 )
 
 SELECT 
-    shw.Employee,
-    shw.Date,
+    em.Employee,
+    em.Date,
     ppx.work_type,
-    shw.HoursWorked,
-    shw.Sessions,
-    shw.Total_Resolution_Time,
-    hro.hero_solve_score,
-    hro.hero_solve_count,
-    hx."Helix Searches",
-    hx."Helix Sessions",
-    s.Total_Eligible,
-    s.Total_Accepted
+    wh.HoursWorked,
+    em.Sessions,
+    em.Total_Resolution_Time,
+    em.hero_solve_score,
+    em.hero_solve_count,
+    COALESCE(hx.HelixSearches,0) AS "Helix Searches",
+    COALESCE(hx.HelixSessions,0) AS "Helix Sessions",
+    em.Total_Eligible,
+    em.Total_Accepted
 FROM
-    SessionsAndHoursWorked shw
-    FULL OUTER JOIN
-    HERO hro
-        ON  shw.Employee = hro.Employee
-        AND shw.Date = hro.Date
-    FULL OUTER JOIN
+    EmployeeMetrics em
+    LEFT OUTER JOIN
+    WorkedHours wh
+        on em.Employee = wh.Employee
+        AND em.Date = wh.Date
+    LEFT OUTER JOIN
     HELIX hx
-        ON  shw.Employee = hx.Employee
-        AND shw.Date = hx.Date
-    FULL OUTER JOIN
-    Sales S
-        ON  shw.Employee = s.Employee
-        AND shw.Date = s.Date
-    FULL OUTER JOIN
+        ON  em.Employee = hx.Employee
+        AND em.Date = hx.Date
+    LEFT OUTER JOIN
     PPX
-        ON  shw.Employee = ppx.expert_id
-        AND shw.Date = ppx.clndr_date
+        ON  em.Employee = ppx.expert_id
+        AND em.Date = ppx.clndr_date
+
 WHERE 1=1
-    AND shw.Sessions is not null
+    AND em.Sessions is not null
+    AND em.Sessions != 0
