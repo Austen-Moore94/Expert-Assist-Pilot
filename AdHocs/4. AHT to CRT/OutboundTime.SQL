@@ -7,7 +7,7 @@ DateSelector As (
     */
     SELECT *
     FROM
-        ( VALUES (CAST('$DATE$' AS DATE), (CURRENT_DATE - interval '1' day)) )
+        ( VALUES (CAST('$DATE$' AS DATE), (DATE '2023-11-10') ) )
         as t ("StartDate","EndDate")
 ),
 
