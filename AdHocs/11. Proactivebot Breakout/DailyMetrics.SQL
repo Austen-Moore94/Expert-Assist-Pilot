@@ -2,7 +2,7 @@ WITH
 DateSelector As (
     SELECT *
     FROM
-        ( VALUES (CAST('2023-10-02' AS DATE), CAST('2023-12-03' AS DATE)) )
+        ( VALUES (CAST('2023-09-25' AS DATE), CAST('2023-12-06' AS DATE)) )
         as t ("StartDate","EndDate")
 ),
 

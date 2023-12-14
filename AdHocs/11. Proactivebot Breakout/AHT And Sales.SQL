@@ -7,7 +7,7 @@ DateSelector As (
     */
     SELECT *
     FROM
-        ( VALUES (CAST('2023-10-02' AS DATE), (CURRENT_DATE - interval '1' day)) )
+        ( VALUES (CAST('2023-09-25' AS DATE), CAST('2023-12-06' AS DATE)) )
         as t ("StartDate","EndDate")
 ),
 
@@ -78,10 +78,43 @@ Sales as(
         asd.reservation_id
 )
 
+-- ,
+-- Call_To_Reservation as(
+-- SELECT
+--     ts.reservationsid,
+--     ts.call_sid
+-- FROM
+--     hive.care.l3_asurion_twilio_task_solution ts
+-- WHERE ts.reservation_id in (SELECT tid.reservation_id FROM AHT)
+-- GROUP BY
+--     reservationsid
+-- )
+
+-- ExpertAssistReactiveUse AS (
+--     SELECT
+--         ctr.reservation_id,
+--         COALESCE(COUNT(element_at(VHE.edp_raw_data_map, 'Identities_messageSid')),0) as ExpertAssistMessages
+--     FROM 
+--         hive.care.l1_verizon_home_events VHE
+--         INNER JOIN
+--         Call_To_Reservation CTR
+--             ON ctr.call_sid = element_at(VHE.edp_raw_data_map, 'Identities_callSid')
+--     WHERE 1=1
+--         AND element_at(VHE.edp_raw_data_map, '_header_eventContext_producer') = 'eip-ingestion-data-science'
+--         AND element_at(VHE.edp_raw_data_map, 'Identities_messageSid') IS NOT NULL
+--         AND element_at(VHE.edp_raw_data_map, 'Name') = 'RequestSummaryVoice'
+--         AND element_at(VHE.edp_raw_data_map, 'Scope')='GenerativeAISearchBotVoice'
+--         AND DATE(edp_updated_date) >= (SELECT StartDate FROM DateSelector)
+--         AND element_at(VHE.edp_raw_data_map, 'ExtraData_agentId') IN (SELECT expert_id_string FROM EligibleEmployees)
+--     GROUP BY
+--         ctr.reservation_id
+-- )
+
 SELECT
     a.Date,
     CAST(a.Employee AS INT) AS Employee,
     a.reservation_id,
+
     a.TaskQueue,
     a.HandleTime as "Handle Time",
     COALESCE(s.Offered,0) as "Offered",
@@ -91,3 +124,6 @@ FROM
     LEFT OUTER JOIN
     Sales s
         on a.reservation_id = s.reservation_id
+-- GROUP BY
+--     a.Date,
+--     CAST(a.Employee AS INT)
