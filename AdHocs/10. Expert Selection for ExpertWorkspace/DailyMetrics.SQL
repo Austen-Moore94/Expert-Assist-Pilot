@@ -2,7 +2,7 @@ WITH
 DateSelector As (
     SELECT *
     FROM
-        ( VALUES (CAST('2023-11-31' AS DATE), CAST('2023-12-03' AS DATE)) )
+        ( VALUES (CAST('2023-08-31' AS DATE), CAST('2023-12-03' AS DATE)) )
         as t ("StartDate","EndDate")
 ),
 
@@ -79,7 +79,7 @@ Transfers AS(
         epm.date as "Date",
         SUM(COALESCE(epm.denominator,0)) as "Transfer_score",
         SUM(COALESCE(epm.numerator,0)) as "Transfer_count"
-    FROM hive.care.  epm
+    FROM hive.care.expert_performance_metrics epm
     WHERE 1=1
         AND epm.metric = 'Transfers'
         AND upper(epm.lob) = 'PSS'
