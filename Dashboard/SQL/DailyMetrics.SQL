@@ -92,17 +92,17 @@ HELIX AS(
 EmployeeMetrics AS(
     SELECT
         CAST(epm.expert_id AS INTEGER) as "Employee",
-        epm.date as "Date",
-        SUM(CASE WHEN epm.metric = 'SP100' THEN COALESCE(epm.denominator,0) ELSE 0 END) as "Total_Eligible",
-        SUM(CASE WHEN epm.metric = 'SP100' THEN COALESCE(epm.numerator,0) ELSE 0 END) as "Total_Accepted",
-        SUM(CASE WHEN epm.metric = 'HERO_Solve' THEN COALESCE(epm.denominator,0) ELSE 0 END) as "hero_solve_score",
-        SUM(CASE WHEN epm.metric = 'HERO_Solve' THEN COALESCE(epm.numerator,0) ELSE 0 END) as "hero_solve_count",
-        SUM(CASE WHEN epm.metric = 'crt' THEN COALESCE(epm.denominator,0) ELSE 0 END) as  "Sessions",
-        SUM(CASE WHEN epm.metric = 'crt' THEN COALESCE(epm.numerator,0) ELSE 0 END) as "Total_Resolution_Time"
+        CAST(epm.date as DATE) as "Date",
+        SUM(CASE WHEN UPPER(epm.metric) = 'SP100' THEN COALESCE(epm.denominator,0) ELSE 0 END) as "Total_Eligible",
+        SUM(CASE WHEN UPPER(epm.metric) = 'SP100' THEN COALESCE(epm.numerator,0) ELSE 0 END) as "Total_Accepted",
+        SUM(CASE WHEN UPPER(epm.metric) = 'HERO_SOLVE' THEN COALESCE(epm.denominator,0) ELSE 0 END) as "hero_solve_score",
+        SUM(CASE WHEN UPPER(epm.metric) = 'HERO_SOLVE' THEN COALESCE(epm.numerator,0) ELSE 0 END) as "hero_solve_count",
+        SUM(CASE WHEN UPPER(epm.metric) = 'CRT' THEN COALESCE(epm.denominator,0) ELSE 0 END) as  "Sessions",
+        SUM(CASE WHEN UPPER(epm.metric) = 'CRT' THEN COALESCE(epm.numerator,0) ELSE 0 END) as "Total_Resolution_Time"
     FROM hive.care.expert_performance_metrics epm
     WHERE 1=1
-        AND epm.metric in ('SP100', 'HERO_Solve', 'crt')
-        AND upper(epm.lob) = 'PSS'
+        AND UPPER(epm.metric) in ('SP100', 'HERO_SOLVE', 'CRT')
+        AND UPPER(epm.lob) in ('PSS', 'SOLUTO')
         --Show only necessary rows
         AND epm.expert_id in (SELECT expert_id_string FROM EligibleEmployees)
         AND CAST(epm.date as DATE)
@@ -112,7 +112,7 @@ EmployeeMetrics AS(
                 (SELECT MAX(EndDate) FROM DateSelector)
     GROUP BY
         epm.expert_id,
-        epm.date
+        CAST(epm.date as DATE)
 ),
 
 WorkedHours AS(
@@ -164,7 +164,3 @@ FROM
     PPX
         ON  em.Employee = ppx.expert_id
         AND em.Date = ppx.clndr_date
-
-WHERE 1=1
-    AND em.Sessions is not null
-    AND em.Sessions != 0
